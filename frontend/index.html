@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>webtree</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="landing">
+    <h1 id="site-title">webtree</h1>
+    <p id="tagline">random-walk crawler · link graph visualizer</p>
+    <form id="search-form">
+      <input
+        id="url-input"
+        type="text"
+        placeholder="https://example.com"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <input
+        id="hops-input"
+        type="number"
+        min="1"
+        max="100"
+        value="15"
+        title="number of hops"
+      />
+      <input
+        id="domain-cap-input"
+        type="number"
+        min="1"
+        max="50"
+        value="3"
+        title="max visits per domain"
+      />
+      <button type="submit">↵</button>
+    </form>
+    <div id="landing-sub">
+      <label id="titles-label">
+        <input type="checkbox" id="titles-toggle" />
+        show titles
+      </label>
+      <button id="random-btn">↗ random wikipedia</button>
+    </div>
+    <p id="hint">url · hops · max/domain</p>
+    <div id="how-it-works">
+      <p>starts at your url · picks a random link · follows it · repeats</p>
+      <p>backtracks when stuck · skips nav & utility links</p>
+      <p><span class="how-param">hops</span> total steps &nbsp;·&nbsp; <span class="how-param">max/domain</span> cap visits per site before moving on</p>
+    </div>
+  </div>
+
+  <div id="graph-view" class="hidden">
+    <div id="top-bar">
+      <span id="top-url"></span>
+      <span id="top-status"></span>
+      <button id="stop-btn" title="stop crawl">⏹</button>
+      <button id="export-btn" title="export CSV">↓ csv</button>
+      <button id="reset-btn">✕</button>
+    </div>
+    <svg id="graph"></svg>
+    <div id="stats-panel" class="hidden"></div>
+    <div id="url-list">
+      <div id="url-list-inner"></div>
+    </div>
+    <div id="detail-panel" class="hidden">
+      <div id="detail-close-row">
+        <button id="detail-close-btn">✕</button>
+      </div>
+      <div id="detail-title-text"></div>
+      <div id="detail-url-text"></div>
+      <div id="detail-meta"></div>
+      <a id="detail-open-link" target="_blank" rel="noopener">open ↗</a>
+    </div>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
