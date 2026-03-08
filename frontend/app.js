@@ -1,4 +1,4 @@
-const BACKEND = "http://localhost:3001";
+const BACKEND = "";
 
 // ── State ──────────────────────────────────────────────────────────────────
 const nodes = [];

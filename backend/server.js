@@ -2,11 +2,16 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { crawl } from "./crawler.js";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
+app.use(express.static(join(__dirname, "../frontend")));
 
 const crawlLimiter = rateLimit({
   windowMs: 60 * 1000,
