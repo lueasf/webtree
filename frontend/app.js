@@ -1,5 +1,18 @@
 const BACKEND = "";
 
+// Wait for d3 to be available
+if (typeof d3 === 'undefined') {
+  const checkD3 = setInterval(() => {
+    if (typeof d3 !== 'undefined') {
+      clearInterval(checkD3);
+      initApp();
+    }
+  }, 50);
+} else {
+  initApp();
+}
+
+function initApp() {
 // ── State ──────────────────────────────────────────────────────────────────
 const nodes = [];
 const links = [];
@@ -438,3 +451,4 @@ window.addEventListener("resize", () => {
   d3.select(graphSvg).attr("width", w).attr("height", h);
   simulation.force("center", d3.forceCenter(w / 2, h / 2)).alpha(0.1).restart();
 });
+} // End of initApp()
