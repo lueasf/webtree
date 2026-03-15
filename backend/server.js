@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { crawl } from "./crawler.js";
+import { crawlArxiv } from "./arxiv-crawler.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
@@ -59,6 +60,38 @@ app.get("/crawl", crawlLimiter, async (req, res) => {
 
   try {
     await crawl(startUrl.href, maxHops, domainCap, send, controller.signal);
+  } catch (err) {
+    send({ type: "error", message: err.message });
+  }
+
+  res.end();
+});
+
+app.get("/crawl-arxiv", crawlLimiter, async (req, res) => {
+  const { url, depth, maxRefs } = req.query;
+
+  if (!url) {
+    return res.status(400).json({ error: "Missing url parameter" });
+  }
+
+  const maxDepth = Math.max(parseInt(depth) || 2, 1);
+  const refsPerPaper = Math.max(parseInt(maxRefs) || 5, 1);
+
+  // SSE setup
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  const send = (data) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  const controller = new AbortController();
+  req.on("close", () => controller.abort());
+
+  try {
+    await crawlArxiv(url, maxDepth, refsPerPaper, send, controller.signal);
   } catch (err) {
     send({ type: "error", message: err.message });
   }

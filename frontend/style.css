@@ -194,6 +194,88 @@ button:hover {
   color: var(--accent);
 }
 
+/* ── arXiv section ── */
+#arxiv-section {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+#arxiv-divider {
+  width: 60px;
+  height: 1px;
+  background: var(--dim);
+  margin-bottom: 6px;
+}
+
+#arxiv-label {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--fg);
+  letter-spacing: 0.08em;
+}
+
+#arxiv-tagline {
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.06em;
+  margin-top: -4px;
+}
+
+#arxiv-form {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--dim);
+  padding-bottom: 6px;
+}
+
+#arxiv-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 16px;
+  width: 340px;
+  caret-color: var(--fg);
+}
+
+#arxiv-input::placeholder {
+  color: var(--edge);
+}
+
+#depth-input,
+#refs-input {
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--dim);
+  outline: none;
+  color: var(--edge);
+  font-family: var(--font);
+  font-size: 16px;
+  width: 44px;
+  text-align: center;
+  margin-left: 10px;
+  padding-left: 10px;
+  -moz-appearance: textfield;
+}
+
+#depth-input::-webkit-outer-spin-button,
+#depth-input::-webkit-inner-spin-button,
+#refs-input::-webkit-outer-spin-button,
+#refs-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+#arxiv-hint {
+  color: var(--fg);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
 /* ── Graph view ── */
 #graph-view {
   position: fixed;
@@ -231,6 +313,7 @@ button:hover {
 }
 
 #stop-btn,
+#fit-btn,
 #export-btn,
 #reset-btn {
   font-size: 11px;
@@ -307,6 +390,16 @@ button:hover {
   text-decoration: line-through;
 }
 
+.url-entry.highlighted {
+  background: rgba(90, 70, 50, 0.12);
+  border-radius: 2px;
+}
+
+.url-entry.highlighted a {
+  color: var(--accent);
+  font-weight: bold;
+}
+
 /* ── D3 elements ── */
 .link {
   stroke: var(--node);
@@ -362,13 +455,16 @@ button:hover {
   dominant-baseline: middle;
 }
 
-.node:hover circle {
+.node:hover circle,
+.node.highlighted circle {
   r: 9;
   fill: var(--node);
 }
 
-.node:hover text {
+.node:hover text,
+.node.highlighted text {
   fill: var(--accent);
+  font-size: 14px;
 }
 
 /* ── Stats panel ── */

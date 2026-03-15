@@ -26,6 +26,8 @@ let hopCounter = 0;
 let currentNodeUrl = null;
 let showTitles = false;
 let crawlStopped = false;
+let isArxivMode = false;
+let svgZoom, svgG;
 
 // ── Domain colors ──────────────────────────────────────────────────────────
 const domainColorScale = d3.scaleOrdinal(d3.schemeTableau10);
@@ -52,6 +54,7 @@ const topUrl         = document.getElementById("top-url");
 const topStatus      = document.getElementById("top-status");
 const resetBtn       = document.getElementById("reset-btn");
 const stopBtn        = document.getElementById("stop-btn");
+const fitBtn         = document.getElementById("fit-btn");
 const exportBtn      = document.getElementById("export-btn");
 const graphSvg       = document.getElementById("graph");
 const urlListInner   = document.getElementById("url-list-inner");
@@ -62,6 +65,10 @@ const detailUrlEl    = document.getElementById("detail-url-text");
 const detailMetaEl   = document.getElementById("detail-meta");
 const detailOpenLink = document.getElementById("detail-open-link");
 const detailCloseBtn = document.getElementById("detail-close-btn");
+const arxivForm       = document.getElementById("arxiv-form");
+const arxivInput      = document.getElementById("arxiv-input");
+const depthInput      = document.getElementById("depth-input");
+const refsInput       = document.getElementById("refs-input");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function urlLabel(url) {
@@ -75,8 +82,18 @@ function urlLabel(url) {
   }
 }
 
+function truncate(str, max) {
+  return str.length > max ? str.slice(0, max) + "…" : str;
+}
+
 function nodeLabel(node) {
+  if (isArxivMode && node.title) return truncate(node.title, 50);
   return (showTitles && node.title) ? node.title : urlLabel(node.id);
+}
+
+function listLabel(node) {
+  if (isArxivMode && node.title) return node.title;
+  return urlLabel(node.id);
 }
 
 function getOrCreateNode(url, isStart = false) {
@@ -101,7 +118,8 @@ function showDetail(node) {
   detailUrlEl.textContent = urlText;
   const hop = nodeHop.get(node.id);
   const domain = domainOf(node.id);
-  detailMetaEl.textContent = `${domain}${hop != null ? " · hop " + hop : ""}`;
+  const hopLabel = isArxivMode ? "depth" : "hop";
+  detailMetaEl.textContent = `${domain}${hop != null ? ` · ${hopLabel} ${hop}` : ""}`;
   detailOpenLink.href = node.id;
   detailPanel.classList.remove("hidden");
 }
@@ -113,6 +131,8 @@ function hideDetail() {
 detailCloseBtn.addEventListener("click", hideDetail);
 
 // ── URL list ───────────────────────────────────────────────────────────────
+const listEntries = new Map(); // url → { entry, anchor }
+
 function addListEntry(url, index, isBacktrack) {
   const entry = document.createElement("div");
   entry.className = "url-entry" + (isBacktrack ? " backtrack" : "");
@@ -121,16 +141,35 @@ function addListEntry(url, index, isBacktrack) {
   idx.className = "idx";
   idx.textContent = String(index).padStart(3, "0");
 
+  const node = nodeIndex.get(url);
   const a = document.createElement("a");
   a.href = url;
   a.target = "_blank";
   a.rel = "noopener";
-  a.textContent = urlLabel(url);
+  a.textContent = node ? listLabel(node) : urlLabel(url);
+
+  // Cross-highlight: hover list → highlight graph node
+  entry.addEventListener("mouseenter", () => {
+    nodeGroup?.selectAll(".node").classed("highlighted", (d) => d.id === url);
+  });
+  entry.addEventListener("mouseleave", () => {
+    nodeGroup?.selectAll(".node").classed("highlighted", false);
+  });
 
   entry.appendChild(idx);
   entry.appendChild(a);
   urlListInner.appendChild(entry);
   entry.scrollIntoView({ block: "nearest" });
+
+  listEntries.set(url, { entry, anchor: a });
+}
+
+function updateListEntry(url) {
+  const le = listEntries.get(url);
+  const node = nodeIndex.get(url);
+  if (le && node) {
+    le.anchor.textContent = listLabel(node);
+  }
 }
 
 // ── D3 graph ───────────────────────────────────────────────────────────────
@@ -156,21 +195,26 @@ function initGraph() {
     .attr("opacity", "0.55");
 
   const g = svgEl.append("g");
+  svgG = g;
 
-  svgEl.call(
-    d3.zoom()
-      .scaleExtent([0.1, 6])
-      .on("zoom", (e) => g.attr("transform", e.transform))
-  );
+  svgZoom = d3.zoom()
+    .scaleExtent([0.02, 10])
+    .on("zoom", (e) => g.attr("transform", e.transform));
+
+  svgEl.call(svgZoom);
 
   linkGroup = g.append("g").attr("class", "links");
   nodeGroup = g.append("g").attr("class", "nodes");
 
+  const linkDist   = isArxivMode ? 400 : 220;
+  const charge     = isArxivMode ? -1500 : -500;
+  const collideR   = isArxivMode ? 160 : 80;
+
   simulation = d3.forceSimulation(nodes)
-    .force("link",      d3.forceLink(links).id((d) => d.id).distance(220).strength(0.35))
-    .force("charge",    d3.forceManyBody().strength(-500))
+    .force("link",      d3.forceLink(links).id((d) => d.id).distance(linkDist).strength(0.35))
+    .force("charge",    d3.forceManyBody().strength(charge))
     .force("center",    d3.forceCenter(width / 2, height / 2))
-    .force("collision", d3.forceCollide(80))
+    .force("collision", d3.forceCollide(collideR))
     .on("tick", ticked);
 }
 
@@ -234,6 +278,15 @@ function addEdge(fromUrl, toUrl, backtrack = false) {
         showDetail(d);
       });
 
+      g.on("mouseenter", (_, d) => {
+        const le = listEntries.get(d.id);
+        if (le) le.entry.classList.add("highlighted");
+      });
+      g.on("mouseleave", (_, d) => {
+        const le = listEntries.get(d.id);
+        if (le) le.entry.classList.remove("highlighted");
+      });
+
       g.call(
         d3.drag()
           .on("start", (e, d) => {
@@ -255,6 +308,41 @@ function addEdge(fromUrl, toUrl, backtrack = false) {
   simulation.nodes(nodes);
   simulation.force("link").links(links);
   simulation.alpha(0.3).restart();
+}
+
+// ── Fit to view ───────────────────────────────────────────────────────────
+function fitToView() {
+  if (!nodes.length || !svgZoom || !svgG) return;
+  const width  = graphSvg.clientWidth;
+  const height = graphSvg.clientHeight;
+  const padding = 60;
+
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const n of nodes) {
+    if (n.x == null || n.y == null) continue;
+    if (n.x < x0) x0 = n.x;
+    if (n.y < y0) y0 = n.y;
+    if (n.x > x1) x1 = n.x;
+    if (n.y > y1) y1 = n.y;
+  }
+
+  if (!isFinite(x0)) return;
+
+  const bw = (x1 - x0) || 1;
+  const bh = (y1 - y0) || 1;
+  const scale = Math.min((width - padding * 2) / bw, (height - padding * 2) / bh, 2);
+  const cx = (x0 + x1) / 2;
+  const cy = (y0 + y1) / 2;
+
+  const transform = d3.zoomIdentity
+    .translate(width / 2, height / 2)
+    .scale(scale)
+    .translate(-cx, -cy);
+
+  d3.select(graphSvg)
+    .transition()
+    .duration(500)
+    .call(svgZoom.transform, transform);
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────────
@@ -319,21 +407,23 @@ function startCrawl(url, hops, domainCap) {
   nodeIndex.clear();
   domainVisits.clear();
   nodeHop.clear();
+  listEntries.clear();
   urlListInner.innerHTML = "";
   hopCounter = 0;
   currentNodeUrl = null;
   crawlStopped = false;
+  isArxivMode = false;
   showTitles = titlesToggle.checked;
 
   hideDetail();
   stopBtn.disabled = false;
 
   landing.classList.add("fade-out");
+  graphView.classList.remove("hidden");
+  statsPanel.classList.add("hidden");
+  initGraph();
   setTimeout(() => {
     landing.style.display = "none";
-    graphView.classList.remove("hidden");
-    statsPanel.classList.add("hidden");
-    initGraph();
   }, 400);
 
   topUrl.textContent = url;
@@ -373,13 +463,15 @@ function startCrawl(url, hops, domainCap) {
         setCurrentNode(event.to);
         break;
 
-      case "title":
-        const node = nodeIndex.get(event.url);
-        if (node) {
-          node.title = event.title;
+      case "title": {
+        const tnode = nodeIndex.get(event.url);
+        if (tnode) {
+          tnode.title = event.title;
           updateNodeLabel(event.url);
+          updateListEntry(event.url);
         }
         break;
+      }
 
       case "done":
         topStatus.textContent = `done — ${hopCount} hops`;
@@ -387,6 +479,100 @@ function startCrawl(url, hops, domainCap) {
         showStats(hopCount);
         stopBtn.disabled = true;
         sse.close();
+        setTimeout(fitToView, 600);
+        break;
+
+      case "error":
+        topStatus.textContent = `error: ${event.message}`;
+        stopBtn.disabled = true;
+        sse.close();
+        break;
+    }
+  };
+
+  sse.onerror = () => {
+    if (!crawlStopped) topStatus.textContent = "connection lost";
+    sse.close();
+  };
+}
+
+// ── arXiv crawl ───────────────────────────────────────────────────────────
+function startArxivCrawl(url, depth, maxRefs) {
+  nodes.length = 0;
+  links.length = 0;
+  nodeIndex.clear();
+  domainVisits.clear();
+  nodeHop.clear();
+  listEntries.clear();
+  urlListInner.innerHTML = "";
+  hopCounter = 0;
+  currentNodeUrl = null;
+  crawlStopped = false;
+  isArxivMode = true;
+  showTitles = true;
+
+  hideDetail();
+  stopBtn.disabled = false;
+
+  landing.classList.add("fade-out");
+  graphView.classList.remove("hidden");
+  statsPanel.classList.add("hidden");
+  initGraph();
+  setTimeout(() => {
+    landing.style.display = "none";
+  }, 400);
+
+  topUrl.textContent = url;
+  topStatus.textContent = "fetching papers…";
+
+  if (currentSSE) currentSSE.close();
+
+  const endpoint = `${BACKEND}/crawl-arxiv?url=${encodeURIComponent(url)}&depth=${depth}&maxRefs=${maxRefs}`;
+  const sse = new EventSource(endpoint);
+  currentSSE = sse;
+
+  let paperCount = 0;
+
+  sse.onmessage = (e) => {
+    const event = JSON.parse(e.data);
+
+    switch (event.type) {
+      case "start":
+        getOrCreateNode(event.url, true);
+        nodeHop.set(event.url, 0);
+        break;
+
+      case "visit":
+        paperCount++;
+        hopCounter++;
+        topStatus.textContent = `${paperCount} papers found`;
+        addEdge(event.from, event.to, false);
+        addListEntry(event.to, hopCounter, false);
+        if (!nodeHop.has(event.to)) nodeHop.set(event.to, event.depth);
+        setCurrentNode(event.to);
+        break;
+
+      case "title": {
+        const tnode = nodeIndex.get(event.url);
+        if (tnode) {
+          tnode.title = event.title;
+          updateNodeLabel(event.url);
+          updateListEntry(event.url);
+        }
+        break;
+      }
+
+      case "done":
+        topStatus.textContent = `done — ${paperCount} papers`;
+        setCurrentNode(null);
+        showStats(paperCount);
+        stopBtn.disabled = true;
+        sse.close();
+        setTimeout(fitToView, 600);
+        break;
+
+      case "status":
+        topStatus.textContent = event.message;
         break;
 
       case "error":
@@ -413,6 +599,15 @@ form.addEventListener("submit", (e) => {
   startCrawl(url, hops, domainCap);
 });
 
+arxivForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const url   = arxivInput.value.trim();
+  const depth = Math.max(parseInt(depthInput.value) || 2, 1);
+  const refs  = Math.max(parseInt(refsInput.value) || 5, 1);
+  if (!url) return;
+  startArxivCrawl(url, depth, refs);
+});
+
 randomBtn.addEventListener("click", async (e) => {
   e.preventDefault();
   const orig = randomBtn.textContent;
@@ -431,6 +626,7 @@ randomBtn.addEventListener("click", async (e) => {
 });
 
 stopBtn.addEventListener("click", stopCrawl);
+fitBtn.addEventListener("click", fitToView);
 exportBtn.addEventListener("click", exportCSV);
 
 resetBtn.addEventListener("click", () => {
@@ -440,7 +636,9 @@ resetBtn.addEventListener("click", () => {
   hideDetail();
   landing.style.display = "";
   landing.classList.remove("fade-out");
+  isArxivMode = false;
   urlInput.value = "";
+  arxivInput.value = "";
   urlInput.focus();
 });
 

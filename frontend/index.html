@@ -49,6 +49,37 @@
       <p>backtracks when stuck · skips nav & utility links</p>
       <p><span class="how-param">hops</span> total steps &nbsp;·&nbsp; <span class="how-param">max/domain</span> cap visits per site before moving on</p>
     </div>
+
+    <div id="arxiv-section">
+      <div id="arxiv-divider"></div>
+      <p id="arxiv-label">arxiv version</p>
+      <p id="arxiv-tagline">citation tree · knowledge propagation</p>
+      <form id="arxiv-form">
+        <input
+          id="arxiv-input"
+          type="text"
+          placeholder="https://arxiv.org/abs/2301.00001"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <input
+          id="depth-input"
+          type="number"
+          min="1"
+          value="2"
+          title="depth of citation tree"
+        />
+        <input
+          id="refs-input"
+          type="number"
+          min="1"
+          value="5"
+          title="max refs per paper"
+        />
+        <button type="submit">↵</button>
+      </form>
+      <p id="arxiv-hint">arxiv url · depth · refs/paper</p>
+    </div>
   </div>
 
   <div id="graph-view" class="hidden">
@@ -56,6 +87,7 @@
       <span id="top-url"></span>
       <span id="top-status"></span>
       <button id="stop-btn" title="stop crawl">⏹</button>
+      <button id="fit-btn" title="fit graph to screen">⊡ fit</button>
       <button id="export-btn" title="export CSV">↓ csv</button>
       <button id="reset-btn">✕</button>
     </div>
